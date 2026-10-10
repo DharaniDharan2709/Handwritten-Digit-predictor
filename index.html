@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Digit Recognizer</title>
+
+    <style>
+        body {
+            text-align: center;
+            font-family: Arial, sans-serif;
+        }
+
+        canvas {
+            background-color: black;
+            border: 2px solid gray;
+        }
+
+        button {
+            margin: 10px;
+            padding: 10px 20px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Handwritten Digit Recognizer</h1>
+    <p>Draw a digit from 0 to 9</p>
+
+    <canvas id="canvas" width="280" height="280"></canvas>
+
+    <br>
+
+    <button onclick="clearCanvas()">Clear</button>
+    <button onclick="predictDigit()">Predict</button>
+
+    <h2 id="result">Prediction: --</h2>
+
+    <script>
+        const canvas = document.getElementById("canvas");
+        const context = canvas.getContext("2d");
+        const result = document.getElementById("result");
+
+        let isDrawing = false;
+
+        // Make the initial canvas black.
+        clearCanvas();
+
+        canvas.addEventListener("pointerdown", function (event) {
+            isDrawing = true;
+
+            const position = getPosition(event);
+
+            context.beginPath();
+            context.moveTo(position.x, position.y);
+        });
+
+        canvas.addEventListener("pointermove", function (event) {
+            if (!isDrawing) {
+                return;
+            }
+
+            const position = getPosition(event);
+
+            context.strokeStyle = "white";
+            context.lineWidth = 20;
+            context.lineCap = "round";
+
+            context.lineTo(position.x, position.y);
+            context.stroke();
+        });
+
+        canvas.addEventListener("pointerup", function () {
+            isDrawing = false;
+        });
+
+        canvas.addEventListener("pointerleave", function () {
+            isDrawing = false;
+        });
+
+        function getPosition(event) {
+            const rectangle = canvas.getBoundingClientRect();
+
+            return {
+                x: event.clientX - rectangle.left,
+                y: event.clientY - rectangle.top
+            };
+        }
+
+        function clearCanvas() {
+            context.fillStyle = "black";
+            context.fillRect(
+                0,
+                0,
+                canvas.width,
+                canvas.height
+            );
+
+            result.textContent = "Prediction: --";
+        }
+
+        async function predictDigit() {
+            // Convert the drawing into a PNG image.
+            const image = canvas.toDataURL("image/png");
+
+            result.textContent = "Predicting...";
+
+            try {
+                // Send the image to our future FastAPI backend.
+                const response = await fetch("/predict", {
+                    method: "POST",
+
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+
+                    body: JSON.stringify({
+                        image: image
+                    })
+                });
+
+                const data = await response.json();
+
+                result.textContent =
+                    "Prediction: " + data.digit;
+
+            } catch (error) {
+                result.textContent =
+                    "Backend is not running yet";
+            }
+        }
+    </script>
+
+</body>
+</html>
